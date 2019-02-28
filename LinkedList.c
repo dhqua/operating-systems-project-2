@@ -1,19 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "LinkedList.h"
 
-typedef struct LinkedList{
-    
-    struct Node* head;
-    struct Node* tail;
-
-} LinkedList;
-
-
-typedef struct Node {
-
-    struct Node* next;
-    unsigned pageNumber;
-} Node;
 
 void enqueue(LinkedList* linkedList, unsigned pageNum){
     
@@ -41,7 +29,7 @@ unsigned dequeue(LinkedList* linkedList){
      Node* oldHead = linkedList->head;
      linkedList->head = oldHead->next;
      free(oldHead);
-    
+     return pageNumber;    
 } 
 
 LinkedList* create(){
@@ -67,7 +55,9 @@ void printList(Node* current){
     }
 
 
-}/*
+}
+
+/*
 int main(int argc, char* argv[]){
     
     LinkedList* linkedList = create();

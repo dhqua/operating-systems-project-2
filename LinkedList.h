@@ -1,5 +1,5 @@
-#IFNDEF "LINKEDLIST.H"
-#define "LINKEDLIST.H"
+#ifndef LINKEDLIST
+#define LINKEDLIST
 
 
 typedef struct LinkedList{
