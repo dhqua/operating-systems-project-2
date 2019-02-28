@@ -14,9 +14,11 @@ typedef struct memReference{
 int main(int argc, char const *argv[])
 {
 
-     int loopCount = 1005001;
+     //int loopCount = 1005001;
+     int loopCount = 200;;
     // int loopCount = 1005000;
     //int loopCount = 20;
+    int pageNum = 1048576;
     int frameNumber = atoi(argv[2]);
     int traceCount = 0;
     
@@ -25,9 +27,10 @@ int main(int argc, char const *argv[])
     memRef traceRead[loopCount];
     // RAM
     memRef simRAM[frameNumber];
+    
     // Page Table
     // 32 bit address / 4kb page size = 2^20 pages = 1048576
-    unsigned pageTable[1048576];
+    unsigned pageTable[pageNum];
 
 
     // Capture policy and mode from command arguments
@@ -47,13 +50,43 @@ int main(int argc, char const *argv[])
         traceCount++;
     }
         
-
-    if( policy == "fifo")
+    if( strcmp(policy, "fifo") == 0)
     {
         LinkedList * queue = create();
-        
-        enqueue(queue, 34567);
-        printf("Test: %d\n", dequeue(queue) );
+
+        int maxRamSize = sizeof(memRef) * frameNumber;
+        // Loop through the memtrace
+        int i =0;
+        unsigned tempAddy;
+        for( ; i < loopCount; i++)
+        {
+            tempAddy = traceRead[i].memAddress;
+            int ramState = sizeof(simRAM) / sizeof(memRef);
+            
+            // RAM is full
+            if( ramState == maxRamSize)
+            {
+               enqueue(queue, traceRead[i].memAddress);
+               simRAM[fifoPolicy(queue, &simRAM)];
+               if(strcmp(mode,"debug") == 0 )
+                printf("FIFO was called!!!!!\n");
+            }
+            else
+            {
+                enqueue(queue, traceRead[i].memAddress);
+                int loc =  0;
+                for( ; i < frameNumber; i++)
+                {
+                   // Current slot in RAM
+                   if(simRAM[i].memAddress == 0 )
+                   {
+                       simRAM[loc].memAddress = traceRead[i].memAddress;
+                       simRAM[loc].accessType = traceRead[i].accessType;;
+                       break;
+                   }
+                }
+            }
+        }
     }
     fclose(fptr);
     return 0;
@@ -61,7 +94,7 @@ int main(int argc, char const *argv[])
 
 // Function that returns the page number that should be replaced in RAM
 // checkAddress - cna
-unsigned fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam)
+int fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam)
 {
     unsigned addressToReplace = dequeue(visitedQueue); 
     // Right shifts the adress by 12, in order to get the first 5 chars of the length 8 hex adress
