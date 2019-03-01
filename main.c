@@ -11,16 +11,22 @@ typedef struct memReference{
     char accessType;
 } memRef;
 
+    int traceCount;
+    int diskReadCount ;
+    int diskWriteCount;
+
 int main(int argc, char const *argv[])
 {
 
-     //int loopCount = 1005001;
-     int loopCount = 200;;
+     int loopCount = 1005001;
+//     int loopCount = 200;;
     // int loopCount = 1005000;
     //int loopCount = 20;
     int pageNum = 1048576;
     int frameNumber = atoi(argv[2]);
-    int traceCount = 0;
+     traceCount = 0;
+     diskReadCount = 0;
+     diskWriteCount =0;
     
     // Simulated Structures
     // Trace File
@@ -61,10 +67,9 @@ int main(int argc, char const *argv[])
         for( ; i < loopCount; i++)
         {
             tempAddy = traceRead[i].memAddress;
-            int ramState = sizeof(simRAM) / sizeof(memRef);
-            
             // RAM is full
-            if( ramState == maxRamSize)
+            if(i >= frameNumber)
+            //if( ramState == maxRamSize)
             {
                enqueue(queue, traceRead[i].memAddress);
                simRAM[fifoPolicy(queue, &simRAM)];
@@ -74,6 +79,17 @@ int main(int argc, char const *argv[])
             else
             {
                 enqueue(queue, traceRead[i].memAddress);
+                // Check if already in page table
+                // Right shifting by 12 to get a value between 1 and 2^20 which represents the page number
+                if( pageTable[(int)(traceRead[i].memAddress >> 12 ) ] == 0 )
+                {
+                    if(traceRead[i].accessType == 'R')
+                        diskReadCount++;
+
+                    if(traceRead[i].accessType == 'W')
+                        diskWriteCount++;
+                    
+                }
                 int loc =  0;
                 for( ; i < frameNumber; i++)
                 {
@@ -86,8 +102,18 @@ int main(int argc, char const *argv[])
                    }
                 }
             }
-        }
+
+                    }
     }
+
+    if(strcmp(mode,"quiet") == 0 )
+        {
+            printf("total memory frames: %d\n", frameNumber);
+            printf("events in trace: %d\n", traceCount);
+            printf("total disk reads: %d\n", diskReadCount);
+            printf("total disk writes: %d\n", diskWriteCount);
+        }
+
     fclose(fptr);
     return 0;
 }
