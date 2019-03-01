@@ -149,3 +149,8 @@ int fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam)
             return ramPageNum;
     }
 }
+
+int lru(){
+
+return 0;
+}
