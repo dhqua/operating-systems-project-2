@@ -71,6 +71,7 @@ int main(int argc, char const *argv[])
         {
             tempAddy = traceRead[i].memAddress;
 
+            int inRamFlag = 0;
             // Calculates the page number of the current address by taking the first 5 of hex address of length 8
             int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
             // Adds address to the page table and records if it requires a disk read or write
@@ -81,10 +82,22 @@ int main(int argc, char const *argv[])
                     if(traceRead[i].accessType == 'R')
                         diskReadCount++;
 
-                    if(traceRead[i].accessType == 'W')
-                        diskWriteCount++;
+                    //if(traceRead[i].accessType == 'W')
+                      //  diskWriteCount++;
                     
                 }
+            // Check if it is in RAM
+            int j =0;
+            for( ; j < frameNumber; j++)
+            {
+                if( simRAM[j].memAddress == traceRead[i].memAddress)
+                    inRamFlag = 1;
+            }
+
+            // Continues trace read because the current address is alread in RAM
+            if(inRamFlag)
+                continue; 
+
             // RAM is full
             if(i >= frameNumber)
             //if( ramState == maxRamSize)
@@ -105,10 +118,10 @@ int main(int argc, char const *argv[])
                 // Right shifting by 12 to get a value between 1 and 2^20 which represents the page number
 
                 int loc =  0;
-                for( ; i < frameNumber; i++)
+                for( ; loc < frameNumber; loc++)
                 {
                    // Current slot in RAM
-                   if(simRAM[i].memAddress == 0 )
+                   if(simRAM[loc].memAddress == 0 )
                    {
                        simRAM[loc].memAddress = traceRead[i].memAddress;
                        simRAM[loc].accessType = traceRead[i].accessType;;
@@ -132,6 +145,7 @@ int main(int argc, char const *argv[])
         {
             tempAddy = traceRead[i].memAddress;
 
+            int inRamFlag = 0;
             // Calculates the page number of the current address by taking the first 5 of hex address of length 8
             int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
             // Adds address to the page table and records if it requires a disk read or write
@@ -142,10 +156,24 @@ int main(int argc, char const *argv[])
                     if(traceRead[i].accessType == 'R')
                         diskReadCount++;
 
-                    if(traceRead[i].accessType == 'W')
-                        diskWriteCount++;
+                    //if(traceRead[i].accessType == 'W')
+                      //  diskWriteCount++;
                     
                 }
+ 
+            // Check if it is in RAM
+            int j =0;
+            for( ; j < frameNumber; j++)
+            {
+                if( simRAM[j].memAddress == traceRead[i].memAddress)
+                    inRamFlag = 1;
+            }
+
+            // Continues trace read because the current address is alread in RAM
+            if(inRamFlag)
+                continue; 
+
+
             // RAM is full
             if(i >= frameNumber)
             //if( ramState == maxRamSize)
@@ -162,10 +190,10 @@ int main(int argc, char const *argv[])
             {
                 // Right shifting by 12 to get a value between 1 and 2^20 which represents the page number
                 int loc =  0;
-                for( ; i < frameNumber; i++)
+                for( ; loc < frameNumber; loc++)
                 {
                    // Current slot in RAM
-                   if(simRAM[i].memAddress == 0 )
+                   if(simRAM[loc].memAddress  == 0 )
                    {
                        simRAM[loc].memAddress = traceRead[i].memAddress;
                        simRAM[loc].accessType = traceRead[i].accessType;;
@@ -205,10 +233,10 @@ int fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam, int frameNum)
     {
         // If the current contents of the this location in the ram matches the pagenumber that needs to be replaced
         // then return the current location within the RAM
-        if( simulatedRam[ramPageNum].memAddress == pageNumber)
+        if( (simulatedRam[ramPageNum].memAddress >> 12) == pageNumber)
         {
-        //    if(simulatedRam[ramPageNum].accessType == 'W' )
-          //      diskWriteCount++;
+            if(simulatedRam[ramPageNum].accessType == 'W' )
+                diskWriteCount++;
             return ramPageNum;
         }
     }
@@ -223,8 +251,8 @@ int lru(memRef * simulatedRam, int frameNum){
         if( simulatedRam[i].lruRank < simulatedRam[minIndex].lruRank )
             minIndex = i;   
     }
-    //if(simulatedRam[minIndex].accessType == 'W')
-      //  diskWriteCount++;
+    if(simulatedRam[minIndex].accessType == 'W')
+        diskWriteCount++;
     return minIndex;
 
 }
