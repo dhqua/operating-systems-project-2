@@ -67,12 +67,31 @@ int main(int argc, char const *argv[])
         for( ; i < loopCount; i++)
         {
             tempAddy = traceRead[i].memAddress;
+
+            // Calculates the page number of the current address by taking the first 5 of hex address of length 8
+            int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
+            // Adds address to the page table and records if it requires a disk read or write
+             if( pageTable[currentPageNum] == 0 )
+                {
+                    // 0 = page not in table, 1 = page exists 
+                    pageTable[currentPageNum] = 1; 
+                    if(traceRead[i].accessType == 'R')
+                        diskReadCount++;
+
+                    if(traceRead[i].accessType == 'W')
+                        diskWriteCount++;
+                    
+                }
             // RAM is full
             if(i >= frameNumber)
             //if( ramState == maxRamSize)
             {
+                
+               // Add current Addy to the queue
                enqueue(queue, traceRead[i].memAddress);
-               simRAM[fifoPolicy(queue, &simRAM)];
+               // Replace something in ram with current address using the FIFO function
+               // Fifo returns the page number of the page to be replace in RAM
+               simRAM[fifoPolicy(queue, &simRAM)] = traceRead[i];
                if(strcmp(mode,"debug") == 0 )
                 printf("FIFO was called!!!!!\n");
             }
@@ -81,15 +100,7 @@ int main(int argc, char const *argv[])
                 enqueue(queue, traceRead[i].memAddress);
                 // Check if already in page table
                 // Right shifting by 12 to get a value between 1 and 2^20 which represents the page number
-                if( pageTable[(int)(traceRead[i].memAddress >> 12 ) ] == 0 )
-                {
-                    if(traceRead[i].accessType == 'R')
-                        diskReadCount++;
 
-                    if(traceRead[i].accessType == 'W')
-                        diskWriteCount++;
-                    
-                }
                 int loc =  0;
                 for( ; i < frameNumber; i++)
                 {
