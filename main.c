@@ -9,11 +9,13 @@
 typedef struct memReference{
     unsigned memAddress;
     char accessType;
+    int lruRank;
 } memRef;
 
     int traceCount;
     int diskReadCount ;
     int diskWriteCount;
+    int lruTicket;;
 
 int main(int argc, char const *argv[])
 {
@@ -27,6 +29,7 @@ int main(int argc, char const *argv[])
      traceCount = 0;
      diskReadCount = 0;
      diskWriteCount =0;
+     lruTicket = 0;
     
     // Simulated Structures
     // Trace File
@@ -91,7 +94,7 @@ int main(int argc, char const *argv[])
                enqueue(queue, traceRead[i].memAddress);
                // Replace something in ram with current address using the FIFO function
                // Fifo returns the page number of the page to be replace in RAM
-               simRAM[fifoPolicy(queue, &simRAM)] = traceRead[i];
+               simRAM[fifoPolicy(queue, &simRAM,frameNumber)] = traceRead[i];
                if(strcmp(mode,"debug") == 0 )
                 printf("FIFO was called!!!!!\n");
             }
@@ -114,7 +117,65 @@ int main(int argc, char const *argv[])
                 }
             }
 
-                    }
+        }
+    }
+
+    if(strcmp(policy,"lru") == 0)
+    {
+                
+
+        int maxRamSize = sizeof(memRef) * frameNumber;
+        // Loop through the memtrace
+        int i =0;
+        unsigned tempAddy;
+        for( ; i < loopCount; i++)
+        {
+            tempAddy = traceRead[i].memAddress;
+
+            // Calculates the page number of the current address by taking the first 5 of hex address of length 8
+            int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
+            // Adds address to the page table and records if it requires a disk read or write
+             if( pageTable[currentPageNum] == 0 )
+                {
+                    // 0 = page not in table, 1 = page exists 
+                    pageTable[currentPageNum] = 1; 
+                    if(traceRead[i].accessType == 'R')
+                        diskReadCount++;
+
+                    if(traceRead[i].accessType == 'W')
+                        diskWriteCount++;
+                    
+                }
+            // RAM is full
+            if(i >= frameNumber)
+            //if( ramState == maxRamSize)
+            {
+                
+               // Replace something in ram with current address using the FIFO function
+               // Fifo returns the page number of the page to be replace in RAM
+               traceRead[i].lruRank = lruTicket++;
+               simRAM[lru( &simRAM,frameNumber)] = traceRead[i];
+               if(strcmp(mode,"debug") == 0 )
+                printf("LRU was called!!!!!\n");
+            }
+            else
+            {
+                // Right shifting by 12 to get a value between 1 and 2^20 which represents the page number
+                int loc =  0;
+                for( ; i < frameNumber; i++)
+                {
+                   // Current slot in RAM
+                   if(simRAM[i].memAddress == 0 )
+                   {
+                       simRAM[loc].memAddress = traceRead[i].memAddress;
+                       simRAM[loc].accessType = traceRead[i].accessType;;
+                       simRAM[loc].lruRank = lruTicket++;
+                       break;
+                   }
+                }
+            }
+
+        }
     }
 
     if(strcmp(mode,"quiet") == 0 )
@@ -131,7 +192,7 @@ int main(int argc, char const *argv[])
 
 // Function that returns the page number that should be replaced in RAM
 // checkAddress - cna
-int fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam)
+int fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam, int frameNum)
 {
     unsigned addressToReplace = dequeue(visitedQueue); 
     // Right shifts the adress by 12, in order to get the first 5 chars of the length 8 hex adress
@@ -140,17 +201,32 @@ int fifoPolicy(LinkedList * visitedQueue, memRef * simulatedRam)
     
     // Iterate through the RAM and find the position of the pageNumber within RAM
     int ramPageNum = 0;
-    int ramLength = sizeof(simulatedRam) / sizeof(struct memReference);
-    for( ; ramPageNum < ramLength; ramPageNum++)
+    for( ; ramPageNum < frameNum; ramPageNum++)
     {
         // If the current contents of the this location in the ram matches the pagenumber that needs to be replaced
         // then return the current location within the RAM
         if( simulatedRam[ramPageNum].memAddress == pageNumber)
+        {
+        //    if(simulatedRam[ramPageNum].accessType == 'W' )
+          //      diskWriteCount++;
             return ramPageNum;
+        }
     }
 }
 
-int lru(){
+int lru(memRef * simulatedRam, int frameNum){
+    int minIndex = 0;
+    
+    int i = 0;
+    for( ; i < frameNum; i++)
+    {
+        if( simulatedRam[i].lruRank < simulatedRam[minIndex].lruRank )
+            minIndex = i;   
+    }
+    //if(simulatedRam[minIndex].accessType == 'W')
+      //  diskWriteCount++;
+    return minIndex;
 
-return 0;
 }
+
+
