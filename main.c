@@ -15,7 +15,7 @@ typedef struct memReference{
     int traceCount;
     int diskReadCount ;
     int diskWriteCount;
-    int lruTicket;;
+    int lruTicket;
     LinkedList* RSSOne;
     LinkedList* RSSTwo;
 
@@ -35,9 +35,12 @@ int main(int argc, char const *argv[])
      diskReadCount = 0;
      diskWriteCount =0;
      lruTicket = 0;
-    int RSS = frameNumber / 2 - 1;
-    cleanList = (LinkedList*)malloc(sizeof(memRef) * (frameNumber / 2) + 1);  
-    dirtyList = (LinkedList*)malloc(sizeof(memRef) * (frameNumber / 2) + 1);
+    int RSS = frameNumber / 2;
+
+    RSSOne = create();
+    RSSTwo = create();
+    cleanList = create(); 
+    dirtyList = create(); 
     // Simulated Structures
     // Trace File
     memRef traceRead[loopCount];
@@ -61,8 +64,8 @@ int main(int argc, char const *argv[])
     {
         traceRead[traceCount].memAddress = addr;
         traceRead[traceCount].accessType = rw;
-        if( strcmp(mode, "debug") == 0)
-            printf("%d: Address: %x Access Type: %c\n",traceCount,traceRead[traceCount].memAddress,traceRead[traceCount].accessType);
+        //if( strcmp(mode, "debug") == 0)
+          //  printf("%d: Address: %x Access Type: %c\n",traceCount,traceRead[traceCount].memAddress,traceRead[traceCount].accessType);
         traceCount++;
     }
         
@@ -97,7 +100,7 @@ int main(int argc, char const *argv[])
             int j =0;
             for( ; j < frameNumber; j++)
             {
-                if( simRAM[j].memAddress == traceRead[i].memAddress)
+                if( (simRAM[j].memAddress >> 12) == currentPageNum)
                     inRamFlag = 1;
             }
 
@@ -171,14 +174,23 @@ int main(int argc, char const *argv[])
             int j =0;
             for( ; j < frameNumber; j++)
             {
-                if( simRAM[j].memAddress == traceRead[i].memAddress)
+                if( (simRAM[j].memAddress >> 12) == currentPageNum)
                     inRamFlag = 1;
             }
 
             // Continues trace read because the current address is alread in RAM
             if(inRamFlag)
-                continue; 
-
+            {
+               int z =0;
+               for( ; z < frameNumber; z++)
+               {
+                   if((simRAM[z].memAddress >> 12 ) == currentPageNum)
+                {
+                    simRAM[z].lruRank = lruTicket++;
+                }
+               }
+               continue; 
+            }
 
             // RAM is full
             if(i >= frameNumber)
@@ -212,7 +224,7 @@ int main(int argc, char const *argv[])
         }
     }
 
-    if(strcmp(mode, "vms") == 0)
+    if(strcmp(policy, "vms") == 0)
     {
         int i = 0;
         for(; i < traceCount; i++){
@@ -228,14 +240,15 @@ int main(int argc, char const *argv[])
            if(rssSelection)
             {
               // Checks is the RAM for process two is full
-              if(RSSTwo->size >= RSS)
+              if(RSSTwo->size >= RSS  )
                 isRAMFull = 1;
               endOfArray = frameNumber;
-            } else {
+            } 
+            else {
               // Checks is the RAM for process two is full
               if(RSSOne->size >= RSS)
                 isRAMFull = 1;
-                endOfArray = RSS;
+              endOfArray = RSS;
             }
 
             
@@ -245,24 +258,20 @@ int main(int argc, char const *argv[])
            // Check if in RAM
            for( ; j < endOfArray; j++)
             {
-                if(simRAM[j].memAddress == traceRead[i].memAddress)
+                if((simRAM[j].memAddress >> 12) == traceRead[i].memAddress >> 12)
                 {
                     inRam = 1;
                 }   
             }
             if(inRam)
             {
+                
+                if( strcmp(mode, "debug") == 0)
+                    printf("Address is in RAM\n");
                 continue;   
             } 
           
-
-            if(!isRAMFull)
-            {
-                
-               if( traceRead[i].accessType == 'R')
-                    diskReadCount++;
-
-               LinkedList * currentRam = RSSTwo;
+             LinkedList * currentRam = RSSTwo;
                int emptySpot = 0;
                if(rssSelection == 1)
                {
@@ -273,7 +282,16 @@ int main(int argc, char const *argv[])
                {
                currentRam = RSSOne;
                }
+
+            if(!isRAMFull)
+            {
                 
+                if( strcmp(mode, "debug") == 0)
+                    printf("Ram is NOT FULL\n");
+                if( traceRead[i].accessType == 'R')
+                   diskReadCount++;
+
+                              
                for( ; emptySpot < endOfArray; emptySpot++)
                {
                     if( simRAM[emptySpot].memAddress == 0)
@@ -295,40 +313,13 @@ int main(int argc, char const *argv[])
             }
           
            int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
+           int inPageTable = 1;
            if( pageTable[currentPageNum] == 0 )
             {
-                // Checks if page is in clean list of dirty list
-                int inRSSList = 0;
-               Node * cursorNode = cleanList->head;
-                while(cursorNode != NULL)
-                {
-                    if(cursorNode->memAddress == traceRead[i].memAddress)
-                        inRSSList = 1;
-                    cursorNode = cursorNode->next;
-                } 
-
-                cursorNode = dirtyList->head;
-                while(cursorNode != NULL)
-                {
-                    if(cursorNode->memAddress == traceRead[i].memAddress)
-                        inRSSList = 1;
-                    cursorNode = cursorNode->next;
-                } 
-
-
-               
-                
-                if(inRSSList)
-                {
-                    //TODO: FifoPolicy               
-                }
-                else
-                {
-                    diskReadCount++;
-                }
-            
                 // 0 = page not in table, 1 = page exists 
                 pageTable[currentPageNum] = 1; 
+                inPageTable = 0;
+                
                 if(traceRead[i].accessType == 'R')
                     diskReadCount++;
 
@@ -336,17 +327,79 @@ int main(int argc, char const *argv[])
                   //  diskWriteCount++;
                 
             }            
+         // Checks if page is in clean list of dirty list
+            int inRSSList = 0;
+           Node * cursorNode = cleanList->head;
+            while(cursorNode != NULL)
+            {
+                if((cursorNode->memAddress >> 12) == (traceRead[i].memAddress >> 12))
+                    inRSSList = 1;
+                cursorNode = cursorNode->next;
+            } 
+
+            cursorNode = dirtyList->head;
+            while(cursorNode != NULL)
+            {
+                if((cursorNode->memAddress >> 12) == (traceRead[i].memAddress >> 12))
+                    inRSSList = 1;
+                cursorNode = cursorNode->next;
+            } 
+
+            
+            if(!inRSSList)
+            {
+               // Replace something in ram with current address using the FIFO function
+               // Fifo returns the page number of the page to be replace in RAM
+               int toBeReplaced = fifoPolicy(currentRam, &simRAM,RSS);
+               memRef temp = simRAM[toBeReplaced];               
+               int isDirty = 0; 
+               if( temp.accessType == 'W')
+                    isDirty = 1;
+               // checks if clean list is empty, is so, then queue it
+               if(!isDirty && cleanList->size < RSS)
+               {
+                    enqueue(cleanList, simRAM[toBeReplaced].memAddress);
+               }
+               // checks if dirty list is empty, is so, then queue it
+               else if(isDirty && dirtyList->size < RSS)
+               {
+                    enqueue(dirtyList, simRAM[toBeReplaced].memAddress);
+               }
+               else if(!isDirty)
+                {
+                    enqueue(cleanList,temp.memAddress);
+                    dequeue(cleanList);
+                }
+                else
+                {
+                    enqueue(dirtyList,temp.memAddress);
+                    dequeue(dirtyList);   
+                    diskWriteCount++;
+                } 
+               simRAM[toBeReplaced] = traceRead[i];
+               enqueue(currentRam, simRAM[toBeReplaced].memAddress);
+            }
+            //else if(!inPageTable && !inRam && !inRSSList)
+            else if(!inPageTable && !inRam && !inRSSList && traceRead[i].accessType == 'R')
+            {
+                enqueue(cleanList, traceRead[i].memAddress);
+                diskReadCount++;
+            }
+            else if(!inPageTable && !inRam && !inRSSList && traceRead[i].accessType == 'W')
+            {
+                enqueue(dirtyList, traceRead[i].memAddress);
+                diskWriteCount++;
+            }
+
             
         }
     }
 
-    if(strcmp(mode,"quiet") == 0 )
-        {
-            printf("total memory frames: %d\n", frameNumber);
-            printf("events in trace: %d\n", traceCount);
-            printf("total disk reads: %d\n", diskReadCount);
-            printf("total disk writes: %d\n", diskWriteCount);
-        }
+        // Print project stats
+        printf("total memory frames: %d\n", frameNumber);
+        printf("events in trace: %d\n", traceCount);
+        printf("total disk reads: %d\n", diskReadCount);
+        printf("total disk writes: %d\n", diskWriteCount);
 
     fclose(fptr);
     return 0;
