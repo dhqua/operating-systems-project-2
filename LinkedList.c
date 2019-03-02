@@ -12,7 +12,7 @@ void enqueue(LinkedList* linkedList, unsigned pageNum){
         exit(1);
     }
     
-    newNode->pageNumber = pageNum;
+    newNode->memAddress = pageNum;
     newNode->next = 0;
     if(linkedList->head == 0){
         linkedList->head = newNode;
@@ -21,20 +21,24 @@ void enqueue(LinkedList* linkedList, unsigned pageNum){
         linkedList->tail->next = newNode;
         linkedList->tail = newNode;
     }
+    
+     linkedList->size += 1;
 }
 
 unsigned dequeue(LinkedList* linkedList){
    
-     unsigned pageNumber = linkedList->head->pageNumber;
+     unsigned memAddress = linkedList->head->memAddress;
      Node* oldHead = linkedList->head;
      linkedList->head = oldHead->next;
      free(oldHead);
-     return pageNumber;    
+      linkedList->size -= 1;
+     return memAddress;    
 } 
 
 LinkedList* create(){
 
     LinkedList* linkedList = (LinkedList*)malloc(sizeof(LinkedList));
+    linkedList->size = 0;
     return linkedList;    
 
 }
@@ -44,12 +48,12 @@ void printList(Node* current){
 
    if(current->next == 0){
         
-        printf("%d\n", current->pageNumber);
+        printf("%d\n", current->memAddress);
         printf("\n");
         return;
     } else {
         
-        printf("%d\n", current->pageNumber);
+        printf("%d\n", current->memAddress);
         printList(current->next);
     
     }

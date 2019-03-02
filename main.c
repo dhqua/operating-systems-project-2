@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "LinkedList.h"
 #include <string.h>
-
+#include <stdlib.h>
 // Data structure to represent mem accesses read from file
 typedef struct memReference{
     unsigned memAddress;
@@ -16,6 +16,11 @@ typedef struct memReference{
     int diskReadCount ;
     int diskWriteCount;
     int lruTicket;;
+    LinkedList* RSSOne;
+    LinkedList* RSSTwo;
+
+    LinkedList * cleanList;
+    LinkedList * dirtyList;
 
 int main(int argc, char const *argv[])
 {
@@ -30,13 +35,15 @@ int main(int argc, char const *argv[])
      diskReadCount = 0;
      diskWriteCount =0;
      lruTicket = 0;
-    
+    int RSS = frameNumber / 2 - 1;
+    cleanList = (LinkedList*)malloc(sizeof(memRef) * (frameNumber / 2) + 1);  
+    dirtyList = (LinkedList*)malloc(sizeof(memRef) * (frameNumber / 2) + 1);
     // Simulated Structures
     // Trace File
     memRef traceRead[loopCount];
     // RAM
     memRef simRAM[frameNumber];
-    
+     
     // Page Table
     // 32 bit address / 4kb page size = 2^20 pages = 1048576
     unsigned pageTable[pageNum];
@@ -99,7 +106,7 @@ int main(int argc, char const *argv[])
                 continue; 
 
             // RAM is full
-            if(i >= frameNumber)
+            if(queue->size >= frameNumber)
             //if( ramState == maxRamSize)
             {
                 
@@ -129,7 +136,6 @@ int main(int argc, char const *argv[])
                    }
                 }
             }
-
         }
     }
 
@@ -203,6 +209,134 @@ int main(int argc, char const *argv[])
                 }
             }
 
+        }
+    }
+
+    if(strcmp(mode, "vms") == 0)
+    {
+        int i = 0;
+        for(; i < traceCount; i++){
+    
+            
+           int processID = (int)(traceRead[i].memAddress >> 28 ) ;
+           // rssSelection 0 = all other process, 1 = process that handles addresses that begin with 3
+           int rssSelection = processID == 3;
+            //rssSelection 1 = 0 -> RSS, rssSelection 1 = RSS -> frameNumber
+            //We split the RAM into two and gave one half to each process
+            int endOfArray;
+            int isRAMFull = 0;
+           if(rssSelection)
+            {
+              // Checks is the RAM for process two is full
+              if(RSSTwo->size >= RSS)
+                isRAMFull = 1;
+              endOfArray = frameNumber;
+            } else {
+              // Checks is the RAM for process two is full
+              if(RSSOne->size >= RSS)
+                isRAMFull = 1;
+                endOfArray = RSS;
+            }
+
+            
+           // determines startpointh
+           int j = rssSelection * RSS;
+           int inRam = 0;
+           // Check if in RAM
+           for( ; j < endOfArray; j++)
+            {
+                if(simRAM[j].memAddress == traceRead[i].memAddress)
+                {
+                    inRam = 1;
+                }   
+            }
+            if(inRam)
+            {
+                continue;   
+            } 
+          
+
+            if(!isRAMFull)
+            {
+                
+               if( traceRead[i].accessType == 'R')
+                    diskReadCount++;
+
+               LinkedList * currentRam = RSSTwo;
+               int emptySpot = 0;
+               if(rssSelection == 1)
+               {
+                currentRam = RSSTwo;
+                emptySpot = RSS;
+               }
+                else
+               {
+               currentRam = RSSOne;
+               }
+                
+               for( ; emptySpot < endOfArray; emptySpot++)
+               {
+                    if( simRAM[emptySpot].memAddress == 0)
+                    {
+                        simRAM[emptySpot] = traceRead[i];
+                        // Adds to the RSS queue
+                        enqueue(currentRam, traceRead[i].memAddress);
+
+                        // Adds to the page table
+                        int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
+                        pageTable[currentPageNum] = 1;
+                        break;
+
+                    }                 
+               }
+               // Continues to the next iteration because it was added to 
+               continue;
+                
+            }
+          
+           int currentPageNum = (int)(traceRead[i].memAddress >> 12 ) ;
+           if( pageTable[currentPageNum] == 0 )
+            {
+                // Checks if page is in clean list of dirty list
+                int inRSSList = 0;
+               Node * cursorNode = cleanList->head;
+                while(cursorNode != NULL)
+                {
+                    if(cursorNode->memAddress == traceRead[i].memAddress)
+                        inRSSList = 1;
+                    cursorNode = cursorNode->next;
+                } 
+
+                cursorNode = dirtyList->head;
+                while(cursorNode != NULL)
+                {
+                    if(cursorNode->memAddress == traceRead[i].memAddress)
+                        inRSSList = 1;
+                    cursorNode = cursorNode->next;
+                } 
+
+
+               
+                
+                if(inRSSList)
+                {
+                    //TODO: FifoPolicy               
+                }
+                else
+                {
+                    diskReadCount++;
+                }
+            
+                // 0 = page not in table, 1 = page exists 
+                pageTable[currentPageNum] = 1; 
+                if(traceRead[i].accessType == 'R')
+                    diskReadCount++;
+
+                //if(traceRead[i].accessType == 'W')
+                  //  diskWriteCount++;
+                
+            }            
+            
         }
     }
 

@@ -6,6 +6,7 @@ typedef struct LinkedList{
     
     struct Node* head;
     struct Node* tail;
+    int size;
 
 } LinkedList;
 
@@ -13,7 +14,7 @@ typedef struct LinkedList{
 typedef struct Node {
 
     struct Node* next;
-    unsigned pageNumber;
+    unsigned memAddress;
 } Node;
 
 void enqueue(LinkedList* linkedList, unsigned pageNum);
