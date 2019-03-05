@@ -1,4 +1,3 @@
-// Cedric Nicolas and Qua'on Thomas
 // Operating Systems - Project 2
 // Due: 4 March 2019
 #ifndef LINKEDLIST

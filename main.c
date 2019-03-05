@@ -1,4 +1,3 @@
-// Cedric Nicolas and Qua'on Thomas
 // Project 2 - Operating Systems
 // Due 4 March 2019
 // Run File: memsim <tracefile> <nframes> <lru|fifo|vms> <debug|quiet>
